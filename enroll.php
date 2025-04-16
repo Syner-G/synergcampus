@@ -19,13 +19,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $current_location    = $conn->real_escape_string($_POST['current_location']);
     $dob                 = $conn->real_escape_string($_POST['dob']);
     $gender              = $conn->real_escape_string($_POST['gender']);
-    $age                 = (int)$_POST['age'];
     $education           = $conn->real_escape_string($_POST['education']);
 
+    // Validate age is 18+
+    $today = new DateTime();
+    $birthdate = new DateTime($dob);
+    $age = $today->diff($birthdate)->y;
+
+    if ($age < 18) {
+        echo "<script>
+                alert('You must be 18 years or older to enroll.');
+                window.history.back();
+              </script>";
+        exit();
+    }
+
     $sql = "INSERT INTO enrollments 
-            (first_name, middle_name, last_name, email, contact_number, current_location, date_of_birth, gender, age, education)
+            (first_name, middle_name, last_name, email, contact_number, current_location, date_of_birth, gender, education)
             VALUES 
-            ('$first_name', '$middle_name', '$last_name', '$email', '$contact_number', '$current_location', '$dob', '$gender', '$age', '$education')";
+            ('$first_name', '$middle_name', '$last_name', '$email', '$contact_number', '$current_location', '$dob', '$gender', '$education')";
 
     if ($conn->query($sql) === TRUE) {
         echo "<script>
@@ -182,10 +194,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </select>
             </div>
             <div class="form-group">
-                <label for="age">Age</label>
-                <input type="number" id="age" name="age" required>
-            </div>
-            <div class="form-group">
                 <label for="education">Educational Attainment</label>
                 <select id="education" name="education" required>
                     <option value="">Select</option>
@@ -206,34 +214,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script>
-        // Auto-fill age based on DOB
-        document.getElementById('dob').addEventListener('change', function () {
-            const dob = new Date(this.value);
+        // Validate age based on DOB (must be 18 or older)
+        document.getElementById('enrollForm').addEventListener('submit', function (e) {
+            const dobInput = document.getElementById("dob").value;
+            if (!dobInput) return;
+
+            const dob = new Date(dobInput);
             const today = new Date();
             let age = today.getFullYear() - dob.getFullYear();
             const m = today.getMonth() - dob.getMonth();
             if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
                 age--;
             }
-            document.getElementById('age').value = age;
-        });
 
-        // Validate age before submission
-        document.getElementById('enrollForm').addEventListener('submit', function (e) {
-            const dobInput = document.getElementById("dob").value;
-            const ageInput = parseInt(document.getElementById("age").value);
-            const dob = new Date(dobInput);
-            const today = new Date();
-            let realAge = today.getFullYear() - dob.getFullYear();
-            const m = today.getMonth() - dob.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-                realAge--;
-            }
-
-            if (realAge !== ageInput) {
-                alert("The age does not match the date of birth. Please correct it.");
-                e.preventDefault();
-            } else if (realAge < 18) {
+            if (age < 18) {
                 alert("You must be 18 years or older to enroll.");
                 e.preventDefault();
             }
