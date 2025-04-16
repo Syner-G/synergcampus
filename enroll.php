@@ -10,37 +10,33 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-$feedback_message = '';
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $first_name          = isset($_POST['first_name']) ? $conn->real_escape_string($_POST['first_name']) : '';
-    $middle_name         = isset($_POST['middle_name']) ? $conn->real_escape_string($_POST['middle_name']) : '';
-    $last_name           = isset($_POST['last_name']) ? $conn->real_escape_string($_POST['last_name']) : '';
-    $email               = isset($_POST['email']) ? $conn->real_escape_string($_POST['email']) : '';
-    $contact_number      = isset($_POST['contact_number']) ? $conn->real_escape_string($_POST['contact_number']) : '';
-    $current_location    = isset($_POST['current_location']) ? $conn->real_escape_string($_POST['current_location']) : '';
-    $dob                 = isset($_POST['dob']) ? $conn->real_escape_string($_POST['dob']) : '';
-    $gender              = isset($_POST['gender']) ? $conn->real_escape_string($_POST['gender']) : '';
-    $age                 = isset($_POST['age']) ? (int)$_POST['age'] : 0;
-    $education           = isset($_POST['education']) ? $conn->real_escape_string($_POST['education']) : '';
+    $first_name          = $conn->real_escape_string($_POST['first_name']);
+    $middle_name         = $conn->real_escape_string($_POST['middle_name']);
+    $last_name           = $conn->real_escape_string($_POST['last_name']);
+    $email               = $conn->real_escape_string($_POST['email']);
+    $contact_number      = $conn->real_escape_string($_POST['contact_number']);
+    $current_location    = $conn->real_escape_string($_POST['current_location']);
+    $dob                 = $conn->real_escape_string($_POST['dob']);
+    $gender              = $conn->real_escape_string($_POST['gender']);
+    $age                 = (int)$_POST['age'];
+    $education           = $conn->real_escape_string($_POST['education']);
 
-    if ($age < 18) {
-        $feedback_message = "You must be 18 years or older to enroll.";
+    $sql = "INSERT INTO enrollments 
+            (first_name, middle_name, last_name, email, contact_number, current_location, date_of_birth, gender, age, education)
+            VALUES 
+            ('$first_name', '$middle_name', '$last_name', '$email', '$contact_number', '$current_location', '$dob', '$gender', '$age', '$education')";
+
+    if ($conn->query($sql) === TRUE) {
+        echo "<script>
+                alert('Thank you for enrolling! We\\'ll get back to you shortly.');
+                window.location.href = 'enroll.php';
+              </script>";
+        exit();
     } else {
-        $sql = "INSERT INTO enrollments 
-                (first_name, middle_name, last_name, email, contact_number, current_location, date_of_birth, gender, age, education)
-                VALUES 
-                ('$first_name', '$middle_name', '$last_name', '$email', '$contact_number', '$current_location', '$dob', '$gender', '$age', '$education')";
-
-        if ($conn->query($sql) === TRUE) {
-            echo "<script>
-                    alert('Thank you for enrolling! We\\'ll get back to you shortly.');
-                    window.location.href = 'enroll.php';
-                  </script>";
-            exit();
-        } else {
-            $feedback_message = "Error: " . $conn->error;
-        }
+        echo "<script>
+                alert('Error: " . $conn->error . "');
+              </script>";
     }
 }
 ?>
@@ -60,27 +56,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background-color: #f7f8fa;
             color: #333;
         }
-        nav ul {
-            display: flex;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        nav ul li {
-            margin-left: 20px;
-        }
-        nav ul li a {
-            text-decoration: none;
-            color: white;
-            font-weight: 500;
-            font-size: 18px;
-            padding: 5px 10px;
-            transition: background-color 0.3s ease;
-        }
-        nav ul li a:hover {
-            background-color: rgb(86, 99, 92);
-            border-radius: 5px;
-        }
         .contact-container {
             background-color: white;
             max-width: 900px;
@@ -94,12 +69,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #009688;
             margin-bottom: 20px;
             font-size: 36px;
-        }
-        .feedback-message {
-            text-align: center;
-            color: #009688;
-            font-size: 18px;
-            margin-bottom: 20px;
         }
         .form-group {
             margin-bottom: 20px;
@@ -174,10 +143,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="contact-container">
         <h1>Enroll Now</h1>
-        <?php if ($feedback_message): ?>
-            <p class="feedback-message"><?php echo $feedback_message; ?></p>
-        <?php endif; ?>
-        <form action="enroll.php" method="POST">
+        <form id="enrollForm" action="enroll.php" method="POST">
             <div class="form-group">
                 <label for="first_name">First Name</label>
                 <input type="text" id="first_name" name="first_name" required>
@@ -238,6 +204,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </form>
     </div>
+
+    <script>
+        // Auto-fill age based on DOB
+        document.getElementById('dob').addEventListener('change', function () {
+            const dob = new Date(this.value);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+            document.getElementById('age').value = age;
+        });
+
+        // Validate age before submission
+        document.getElementById('enrollForm').addEventListener('submit', function (e) {
+            const dobInput = document.getElementById("dob").value;
+            const ageInput = parseInt(document.getElementById("age").value);
+            const dob = new Date(dobInput);
+            const today = new Date();
+            let realAge = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                realAge--;
+            }
+
+            if (realAge !== ageInput) {
+                alert("The age does not match the date of birth. Please correct it.");
+                e.preventDefault();
+            } else if (realAge < 18) {
+                alert("You must be 18 years or older to enroll.");
+                e.preventDefault();
+            }
+        });
+    </script>
 
 </body>
 </html>
